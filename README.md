@@ -1,6 +1,5 @@
 ---
-title: GutCheck - Blood Test Analyzer
-emoji: 💉
+title: GutCheck
 colorFrom: blue
 colorTo: purple
 sdk: docker
@@ -20,11 +19,11 @@ Built for Mistral AI Worldwide Hackathon 2026
 - Clear status indicators (Normal / Borderline / Attention)
 - Plain English explanations
 - Actionable recommendations
-- Results in ~15-30 seconds
+- Results in 15-30 seconds
 
 ## Environment Variables
 
-Set `MISTRAL_API_KEY` in Repository secrets.
+Set MISTRAL_API_KEY in Repository secrets.
 
 Get your API key at: https://console.mistral.ai/api-keys/
 
