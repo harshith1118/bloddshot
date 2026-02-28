@@ -1,6 +1,6 @@
 ---
 title: GutCheck - Blood Test Analyzer
-emoji: 🩸
+emoji: 💉
 colorFrom: blue
 colorTo: purple
 sdk: docker
@@ -8,7 +8,7 @@ app_file: gutcheck-web/main.py
 pinned: false
 ---
 
-# GutCheck 🩸
+# GutCheck
 
 Your blood test, finally explained.
 
@@ -30,4 +30,4 @@ Get your API key at: https://console.mistral.ai/api-keys/
 
 ---
 
-*For educational purposes only. Consult your doctor for medical advice.*
+For educational purposes only. Consult your doctor for medical advice.
