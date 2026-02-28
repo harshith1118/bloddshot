@@ -1,9 +1,36 @@
-node_modules
-__pycache__
-*.pyc
-.git
+# Ignore Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+
+# Ignore virtual environments
+venv/
+env/
+.venv/
+
+# Ignore IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Ignore OS files
+.DS_Store
+Thumbs.db
+
+# Ignore local env
 .env
 .env.local
-wandb/
+
+# Ignore build artifacts
+dist/
+build/
+node_modules/
+
+# Ignore logs
 *.log
-dist
+wandb/

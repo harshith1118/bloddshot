@@ -1,27 +1,23 @@
 FROM python:3.11-slim
 
-# Install Node.js
-RUN apt-get update && apt-get install -y nodejs npm
+# Install system dependencies
+RUN apt-get update && apt-get install -y nodejs npm git curl
 
 WORKDIR /app
 
+# Copy EVERYTHING at once
+COPY . .
+
 # Install Python dependencies
-COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy and build React app
-COPY gutcheck-web/ ./gutcheck-web/
+# Build React app
 WORKDIR /app/gutcheck-web
 RUN npm install
 RUN npm run build
 
-# Setup backend - copy from gutcheck-web folder
+# Go back to app root and run
 WORKDIR /app
-COPY gutcheck-web/main.py .
-COPY core/ ./core/
-COPY prompts/ ./prompts/
-COPY utils/ ./utils/
-
 EXPOSE 7860
 
-CMD ["python", "main.py"]
+CMD ["python", "gutcheck-web/main.py"]
