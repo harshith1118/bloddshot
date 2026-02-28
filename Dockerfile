@@ -9,12 +9,12 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy and build React frontend
-COPY gutcheck-web/package*.json ./
-WORKDIR /app
-RUN npm install --prefix gutcheck-web
-COPY gutcheck-web/ gutcheck-web/
+# Copy entire gutcheck-web folder
+COPY gutcheck-web/ ./gutcheck-web/
+
+# Build React app
 WORKDIR /app/gutcheck-web
+RUN npm install
 RUN npm run build
 
 # Setup backend
