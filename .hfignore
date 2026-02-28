@@ -1,0 +1,20 @@
+# Ignore patterns for Hugging Face Spaces
+.env
+.env.example
+.env.local
+*.md
+!README.md
+!DEPLOYMENT_GUIDE.md
+node_modules/
+__pycache__/
+*.pyc
+.git/
+.huggingface/
+.streamlit/
+*.log
+debug_*.txt
+test_*.py
+run.bat
+wandb/
+BUILD_COMPLETE.md
+README_NEW.md

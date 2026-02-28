@@ -1,0 +1,19 @@
+# Frontend
+streamlit>=1.30.0
+
+# Mistral AI
+mistralai>=1.0.0
+httpx>=0.25.0
+
+# PDF Parsing
+PyMuPDF>=1.23.0
+pdfplumber>=0.10.0
+
+# Environment
+python-dotenv>=1.0.0
+
+# Experiment Tracking
+wandb>=0.16.0
+
+# Utilities
+pydantic>=2.5.0

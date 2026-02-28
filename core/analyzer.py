@@ -1,0 +1,202 @@
+"""
+Biomarker Analysis Engine
+Uses Mistral Large 3 to analyze blood test reports and generate JSON responses.
+"""
+
+import json
+import os
+import re
+from typing import Dict, Any, Optional
+from dotenv import load_dotenv
+
+from prompts.system_prompt import get_system_prompt
+
+load_dotenv()
+
+
+def extract_json_from_response(text: str) -> Optional[Dict[str, Any]]:
+    """
+    Extract valid JSON from model response text.
+    Handles markdown code blocks and fixes common JSON issues.
+    """
+    if not text:
+        return None
+    
+    # Try direct parse first
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+    
+    # Try to extract JSON from markdown code block
+    json_pattern = r'```(?:json)?\s*(\{.*?\})\s*```'
+    match = re.search(json_pattern, text, re.DOTALL)
+    
+    if match:
+        try:
+            return json.loads(match.group(1))
+        except json.JSONDecodeError:
+            pass
+    
+    # Look for any JSON object (first { to last })
+    try:
+        start = text.find('{')
+        end = text.rfind('}') + 1
+        if start != -1 and end > start:
+            json_str = text[start:end]
+            # Fix common issues
+            json_str = fix_json_string(json_str)
+            return json.loads(json_str)
+    except Exception:
+        pass
+    
+    return None
+
+
+def fix_json_string(json_str: str) -> str:
+    """
+    Fix common JSON string issues.
+    """
+    # Fix unescaped newlines in strings (but not outside strings)
+    # This is a simplified fix - replace literal newlines in strings with \n
+    lines = json_str.split('\n')
+    fixed_lines = []
+    in_string = False
+    
+    for line in lines:
+        if in_string:
+            # We're continuing a string from previous line
+            fixed_lines.append('\\n' + line.rstrip())
+        else:
+            fixed_lines.append(line.rstrip())
+        
+        # Count quotes to see if we're in a string
+        # Simple heuristic: odd number of unescaped quotes means we're in a string
+        quote_count = 0
+        i = 0
+        while i < len(line):
+            if line[i] == '"' and (i == 0 or line[i-1] != '\\'):
+                quote_count += 1
+            i += 1
+        
+        if quote_count % 2 == 1:
+            in_string = not in_string
+    
+    return '\n'.join(fixed_lines)
+
+
+class BiomarkerAnalyzer:
+    """Analyzes blood test reports using Mistral Large 3."""
+
+    def __init__(self):
+        self.api_key = os.getenv("MISTRAL_API_KEY")
+        if not self.api_key:
+            raise ValueError("MISTRAL_API_KEY not found in environment")
+
+        self.model = "mistral-large-latest"
+        self.system_prompt = get_system_prompt()
+
+        # Initialize Mistral client
+        from mistralai import Mistral
+        self.client = Mistral(api_key=self.api_key)
+
+    def analyze(self, extracted_text: str) -> Dict[str, Any]:
+        """
+        Analyze extracted PDF text and return structured results.
+        Optimized for speed.
+        """
+        user_message = f"""Analyze this blood test report. Return JSON only:
+
+{extracted_text}
+
+JSON format only, no markdown."""
+
+        response = self.client.chat.complete(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": self.system_prompt},
+                {"role": "user", "content": user_message}
+            ],
+            temperature=0.3,
+            max_tokens=2000,  # Reduced for faster response
+        )
+
+        result_text = response.choices[0].message.content
+        result = extract_json_from_response(result_text)
+        
+        if result is None:
+            return {
+                "overall_status": "UNKNOWN",
+                "summary": "Unable to parse results. Please try again.",
+                "biomarkers": [],
+                "top_priorities": [],
+                "disclaimer": "This analysis is for educational purposes only."
+            }
+
+        return result
+    
+    def analyze_with_streaming(self, extracted_text: str):
+        """
+        Analyze with streaming response for better UX.
+        
+        Args:
+            extracted_text: Raw text extracted from blood test PDF
+            
+        Yields:
+            Chunks of the response as they arrive
+        """
+        user_message = f"""Please analyze this blood test report:
+
+{extracted_text}
+
+Remember to return ONLY valid JSON matching the required schema."""
+
+        stream = self.client.chat.stream(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": self.system_prompt},
+                {"role": "user", "content": user_message}
+            ],
+            temperature=0.3,
+            max_tokens=2000,
+            response_format={"type": "json_object"}
+        )
+        
+        for chunk in stream:
+            if chunk.data.choices[0].delta.content:
+                yield chunk.data.choices[0].delta.content
+    
+    def validate_report(self, extracted_text: str) -> Dict[str, Any]:
+        """
+        Quick validation to check if the text appears to be a blood test report.
+        
+        Args:
+            extracted_text: Raw text to validate
+            
+        Returns:
+            Dictionary with validation results
+        """
+        # Check for common blood test keywords
+        keywords = [
+            "hemoglobin", "cholesterol", "glucose", "blood sugar",
+            "vitamin", "iron", "platelet", "white blood", "red blood",
+            "hdl", "ldl", "triglyceride", "creatinine", "albumin",
+            "mg/dl", "g/dl", "mmol/l", "reference range", "lab results"
+        ]
+        
+        text_lower = extracted_text.lower()
+        found_keywords = [kw for kw in keywords if kw in text_lower]
+        
+        if len(found_keywords) < 2:
+            return {
+                "is_valid": False,
+                "message": "This doesn't appear to be a blood test report. "
+                          f"Found only {len(found_keywords)} relevant terms.",
+                "found_terms": found_keywords
+            }
+        
+        return {
+            "is_valid": True,
+            "message": f"Valid blood test report detected. Found {len(found_keywords)} relevant terms.",
+            "found_terms": found_keywords
+        }
