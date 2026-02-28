@@ -1,29 +1,24 @@
 FROM python:3.11-slim
 
-# Install Node.js for building React
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-RUN apt-get install -y nodejs
+# Install Node.js
+RUN apt-get update && apt-get install -y nodejs npm curl
 
-# Set working directory
+# Working directory
 WORKDIR /app
 
-# Copy backend requirements and install
+# Install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy frontend package.json and install
-COPY gutcheck-web/package.json gutcheck-web/
+# Build React frontend
 WORKDIR /app/gutcheck-web
+COPY gutcheck-web/package*.json ./
 RUN npm install
-
-# Copy frontend source and build
 COPY gutcheck-web/ ./
 RUN npm run build
 
-# Go back to app root
+# Setup backend
 WORKDIR /app
-
-# Copy backend code
 COPY main.py .
 COPY core/ ./core/
 COPY prompts/ ./prompts/
@@ -32,5 +27,5 @@ COPY utils/ ./utils/
 # Expose port
 EXPOSE 7860
 
-# Run the server
+# Run
 CMD ["python", "main.py"]
