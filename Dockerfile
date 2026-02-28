@@ -9,17 +9,15 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy entire gutcheck-web folder
+# Copy and build React app
 COPY gutcheck-web/ ./gutcheck-web/
-
-# Build React app
 WORKDIR /app/gutcheck-web
 RUN npm install
 RUN npm run build
 
-# Setup backend
+# Setup backend - copy from gutcheck-web folder
 WORKDIR /app
-COPY main.py .
+COPY gutcheck-web/main.py .
 COPY core/ ./core/
 COPY prompts/ ./prompts/
 COPY utils/ ./utils/
