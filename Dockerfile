@@ -1,31 +1,31 @@
 FROM python:3.11-slim
 
 # Install Node.js
-RUN apt-get update && apt-get install -y nodejs npm curl
+RUN apt-get update && apt-get install -y nodejs npm
 
-# Working directory
 WORKDIR /app
 
-# Install Python dependencies
+# Copy Python requirements first
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Build React frontend
-WORKDIR /app/gutcheck-web
+# Copy and build React app
 COPY gutcheck-web/package*.json ./
 RUN npm install
-COPY gutcheck-web/ ./
+COPY gutcheck-web/src ./src
+COPY gutcheck-web/public ./public
+COPY gutcheck-web/index.html ./
+COPY gutcheck-web/vite.config.js ./
+COPY gutcheck-web/tailwind.config.js ./
+COPY gutcheck-web/postcss.config.js ./
 RUN npm run build
 
-# Setup backend
-WORKDIR /app
+# Copy backend
 COPY main.py .
-COPY core/ ./core/
-COPY prompts/ ./prompts/
-COPY utils/ ./utils/
+COPY core ./core
+COPY prompts ./prompts
+COPY utils ./utils
 
-# Expose port
 EXPOSE 7860
 
-# Run
 CMD ["python", "main.py"]
