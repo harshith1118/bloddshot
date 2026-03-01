@@ -389,27 +389,42 @@ def main():
             progress_bar.progress(50)
             status_text.text(f"✅ Text extracted ({extraction_method})")
             
-            status_text.text("🤖 Analyzing biomarkers with Mistral Large 3...")
+            status_text.text("🤖 Analyzing biomarkers with AI...")
             progress_bar.progress(60)
-            
+
             try:
                 analyzer = BiomarkerAnalyzer()
-                
+
                 # Validate it's a blood test report
                 validation = analyzer.validate_report(extracted_text)
                 if not validation["is_valid"]:
                     st.warning(validation["message"])
+
+                # Run analysis with retry
+                max_retries = 2
+                analysis_result = None
                 
-                # Run analysis
-                analysis_result = analyzer.analyze(extracted_text)
+                for attempt in range(max_retries):
+                    try:
+                        status_text.text(f"🤖 Analyzing... (attempt {attempt + 1}/{max_retries})")
+                        analysis_result = analyzer.analyze(extracted_text)
+                        if analysis_result and analysis_result.get("biomarkers"):
+                            break
+                    except Exception as retry_error:
+                        if attempt == max_retries - 1:
+                            raise
+                        time.sleep(1)
                 
+                if not analysis_result or not analysis_result.get("biomarkers"):
+                    raise Exception("No biomarkers detected in analysis result")
+
                 response_time = time.time() - start_time
-                
+
                 st.session_state.analysis_result = analysis_result
-                
+
                 progress_bar.progress(100)
                 status_text.text(f"✅ Analysis complete in {response_time:.1f}s!")
-                
+
                 # Log to W&B
                 tracker.log_analysis(
                     pdf_size_kb=len(pdf_bytes) / 1024,
@@ -418,12 +433,12 @@ def main():
                     overall_status=analysis_result.get("overall_status"),
                     biomarker_count=len(analysis_result.get("biomarkers", []))
                 )
-                
+
                 # Auto-hide progress after success
-                time.sleep(0.5)
+                time.sleep(0.3)
                 progress_bar.empty()
                 status_text.empty()
-                
+
                 st.success(f"Analysis complete in {response_time:.1f} seconds!")
                 
             except Exception as e:

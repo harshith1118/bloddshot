@@ -114,13 +114,13 @@ class BiomarkerAnalyzer:
         if not self.api_key:
             raise ValueError("MISTRAL_API_KEY not found in environment. Please set it in your .env file or Space secrets.")
 
-        # Use mistral-medium for faster response (good balance of speed/accuracy)
-        self.model = "mistral-medium-latest"
+        # Use mistral-small for fastest response (good for structured tasks)
+        self.model = "mistral-small-latest"
         self.system_prompt = get_system_prompt()
 
         # Initialize Mistral client with timeout
         from mistralai import Mistral
-        self.client = Mistral(api_key=self.api_key, timeout=30)
+        self.client = Mistral(api_key=self.api_key, timeout=20)
         print(f"Mistral client initialized with model: {self.model}")
 
     def analyze(self, extracted_text: str) -> Dict[str, Any]:
@@ -128,13 +128,13 @@ class BiomarkerAnalyzer:
         Analyze extracted PDF text and return structured results.
         Optimized for speed.
         """
-        # Pre-process: truncate text to essential content (reduce tokens)
+        # Pre-process: extract only relevant biomarker lines
         processed_text = self._preprocess_text(extracted_text)
         print(f"Analyzing text ({len(processed_text)} chars)...")
 
         user_message = f"""{processed_text}
 
-Return JSON only."""
+JSON only:"""
 
         try:
             response = self.client.chat.complete(
@@ -143,27 +143,24 @@ Return JSON only."""
                     {"role": "system", "content": self.system_prompt},
                     {"role": "user", "content": user_message}
                 ],
-                temperature=0.1,  # Lower temp for faster, more deterministic output
-                max_tokens=2500,  # Reduced from 4000 - blood tests don't need more
+                temperature=0,  # Fastest, most deterministic
+                max_tokens=1500,  # Minimal for JSON output
                 response_format={"type": "json_object"},
             )
 
             result_text = response.choices[0].message.content
             print(f"Raw API response length: {len(result_text)} chars")
 
-            # Check if response was truncated
             if not result_text or result_text.strip() == "":
                 print("ERROR: Empty response from API")
                 return self._get_fallback_response("Empty response from AI model")
 
-            # Check if JSON is complete (ends with })
             result_text = result_text.strip()
             if not result_text.endswith('}'):
-                print("WARNING: Response appears truncated, attempting to fix...")
+                print("WARNING: Response appears truncated...")
                 last_brace = result_text.rfind('}')
                 if last_brace > 0:
                     result_text = result_text[:last_brace+1]
-                    print(f"Truncated to last complete JSON object: {len(result_text)} chars")
 
             result = extract_json_from_response(result_text)
 
@@ -180,29 +177,27 @@ Return JSON only."""
 
     def _preprocess_text(self, text: str) -> str:
         """
-        Pre-process PDF text to reduce token count and remove noise.
+        Extract only biomarker-related lines to minimize tokens.
         """
-        # Remove excessive whitespace
+        # Keywords that indicate biomarker data
+        keywords = ['hemoglobin', 'hematocrit', 'rbc', 'wbc', 'platelet',
+                    'glucose', 'hba1c', 'cholesterol', 'hdl', 'ldl', 'triglyceride',
+                    'creatinine', 'bun', 'alt', 'ast', 'albumin',
+                    'vitamin d', 'iron', 'ferritin', 'b12',
+                    'mg/dl', 'g/dl', 'mcg/dl', 'ng/ml', 'pg/ml', 'u/l', '%']
+        
         lines = text.split('\n')
-        cleaned_lines = []
+        filtered = []
         for line in lines:
             line = line.strip()
-            if line and len(line) > 1:  # Skip empty or single-char lines
-                cleaned_lines.append(line)
+            if len(line) < 3:
+                continue
+            # Keep lines with biomarker keywords or numeric values
+            line_lower = line.lower()
+            if any(kw in line_lower for kw in keywords):
+                filtered.append(line)
         
-        # Rejoin with single newlines
-        cleaned = '\n'.join(cleaned_lines)
-        
-        # Remove duplicate consecutive lines
-        lines = cleaned.split('\n')
-        unique_lines = []
-        prev = None
-        for line in lines:
-            if line != prev:
-                unique_lines.append(line)
-                prev = line
-        
-        return '\n'.join(unique_lines)
+        return '\n'.join(filtered[:50])  # Max 50 lines
     
     def _get_fallback_response(self, error_msg: str) -> Dict[str, Any]:
         """Return a structured fallback response on error."""
