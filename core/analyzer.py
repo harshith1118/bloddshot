@@ -126,11 +126,11 @@ class BiomarkerAnalyzer:
         Analyze extracted PDF text and return structured results.
         Optimized for speed.
         """
-        user_message = f"""Analyze this blood test report. Return JSON only:
+        user_message = f"""Analyze this blood test report:
 
 {extracted_text}
 
-JSON format only, no markdown."""
+Return valid JSON only."""
 
         response = self.client.chat.complete(
             model=self.model,
@@ -139,7 +139,8 @@ JSON format only, no markdown."""
                 {"role": "user", "content": user_message}
             ],
             temperature=0.3,
-            max_tokens=2000,  # Reduced for faster response
+            max_tokens=2000,
+            response_format={"type": "json_object"},  # Force JSON mode
         )
 
         result_text = response.choices[0].message.content
