@@ -23,6 +23,9 @@ wheels/
 .installed.cfg
 *.egg
 
+# Except frontend lib directory
+!gutcheck-web/src/lib/
+
 # Virtual environments
 venv/
 env/
