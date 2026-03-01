@@ -112,7 +112,7 @@ class BiomarkerAnalyzer:
     def __init__(self):
         self.api_key = os.getenv("MISTRAL_API_KEY")
         if not self.api_key:
-            raise ValueError("MISTRAL_API_KEY not found in environment")
+            raise ValueError("MISTRAL_API_KEY not found in environment. Please set it in your .env file or Space secrets.")
 
         self.model = "mistral-large-latest"
         self.system_prompt = get_system_prompt()
@@ -120,44 +120,63 @@ class BiomarkerAnalyzer:
         # Initialize Mistral client
         from mistralai import Mistral
         self.client = Mistral(api_key=self.api_key)
+        print(f"Mistral client initialized with model: {self.model}")
 
     def analyze(self, extracted_text: str) -> Dict[str, Any]:
         """
         Analyze extracted PDF text and return structured results.
         Optimized for speed.
         """
+        print(f"Analyzing text ({len(extracted_text)} chars)...")
+        print(f"Extracted text preview: {extracted_text[:300]}...")
+        
         user_message = f"""Analyze this blood test report:
 
 {extracted_text}
 
 Return valid JSON only."""
 
-        response = self.client.chat.complete(
-            model=self.model,
-            messages=[
-                {"role": "system", "content": self.system_prompt},
-                {"role": "user", "content": user_message}
-            ],
-            temperature=0.3,
-            max_tokens=2000,
-            response_format={"type": "json_object"},  # Force JSON mode
-        )
+        try:
+            response = self.client.chat.complete(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": self.system_prompt},
+                    {"role": "user", "content": user_message}
+                ],
+                temperature=0.3,
+                max_tokens=2000,
+                response_format={"type": "json_object"},  # Force JSON mode
+            )
 
-        result_text = response.choices[0].message.content
-        print(f"Raw API response: {result_text[:500]}...")
-        result = extract_json_from_response(result_text)
+            result_text = response.choices[0].message.content
+            print(f"Raw API response: {result_text}")
+            
+            if not result_text or result_text.strip() == "":
+                print("ERROR: Empty response from API")
+                return self._get_fallback_response("Empty response from AI model")
+            
+            result = extract_json_from_response(result_text)
 
-        if result is None:
-            print(f"Failed to parse JSON. Full response: {result_text}")
-            return {
-                "overall_status": "UNKNOWN",
-                "summary": "Unable to parse results. Please try again.",
-                "biomarkers": [],
-                "top_priorities": [],
-                "disclaimer": "This analysis is for educational purposes only."
-            }
+            if result is None:
+                print(f"Failed to parse JSON. Full response: {result_text}")
+                return self._get_fallback_response("Could not parse AI response")
 
-        return result
+            print(f"Successfully parsed result: {result}")
+            return result
+            
+        except Exception as e:
+            print(f"API call failed: {str(e)}")
+            return self._get_fallback_response(f"API error: {str(e)}")
+    
+    def _get_fallback_response(self, error_msg: str) -> Dict[str, Any]:
+        """Return a structured fallback response on error."""
+        return {
+            "overall_status": "UNKNOWN",
+            "summary": f"Analysis failed: {error_msg}. Please try again or check the logs.",
+            "biomarkers": [],
+            "top_priorities": ["Check Space logs for detailed error messages"],
+            "disclaimer": "This analysis is for educational purposes only."
+        }
     
     def analyze_with_streaming(self, extracted_text: str):
         """
