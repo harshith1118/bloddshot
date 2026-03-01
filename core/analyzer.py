@@ -114,8 +114,8 @@ class BiomarkerAnalyzer:
         if not self.api_key:
             raise ValueError("MISTRAL_API_KEY not found in environment. Please set it in your .env file or Space secrets.")
 
-        # Use mistral-small for fastest response (good for structured tasks)
-        self.model = "mistral-small-latest"
+        # Use mistral-small-2506 for fast response (good for structured tasks)
+        self.model = "mistral-small-2506"
         self.system_prompt = get_system_prompt()
 
         # Initialize Mistral client with timeout
