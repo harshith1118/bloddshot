@@ -6,7 +6,7 @@ colorTo: purple
 sdk: docker
 app_file: gutcheck-web/main.py
 pinned: false
-license: MIT
+license: mit
 ---
 
 # 🩸 GutCheck
