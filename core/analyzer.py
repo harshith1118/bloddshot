@@ -144,24 +144,35 @@ Return valid JSON only."""
                     {"role": "user", "content": user_message}
                 ],
                 temperature=0.3,
-                max_tokens=2000,
+                max_tokens=4000,  # Increased from 2000 to handle full reports
                 response_format={"type": "json_object"},  # Force JSON mode
             )
 
             result_text = response.choices[0].message.content
-            print(f"Raw API response: {result_text}")
+            print(f"Raw API response length: {len(result_text)} chars")
             
+            # Check if response was truncated
             if not result_text or result_text.strip() == "":
                 print("ERROR: Empty response from API")
                 return self._get_fallback_response("Empty response from AI model")
             
+            # Check if JSON is complete (ends with })
+            result_text = result_text.strip()
+            if not result_text.endswith('}'):
+                print("WARNING: Response appears truncated, attempting to fix...")
+                # Try to find the last complete JSON object
+                last_brace = result_text.rfind('}')
+                if last_brace > 0:
+                    result_text = result_text[:last_brace+1]
+                    print(f"Truncated to last complete JSON object: {len(result_text)} chars")
+            
             result = extract_json_from_response(result_text)
 
             if result is None:
-                print(f"Failed to parse JSON. Full response: {result_text}")
+                print(f"Failed to parse JSON. Full response: {result_text[:1000]}...")
                 return self._get_fallback_response("Could not parse AI response")
 
-            print(f"Successfully parsed result: {result}")
+            print(f"Successfully parsed result with {len(result.get('biomarkers', []))} biomarkers")
             return result
             
         except Exception as e:
