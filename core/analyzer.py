@@ -107,19 +107,20 @@ def fix_json_string(json_str: str) -> str:
 
 
 class BiomarkerAnalyzer:
-    """Analyzes blood test reports using Mistral Large 3."""
+    """Analyzes blood test reports using Mistral."""
 
     def __init__(self):
         self.api_key = os.getenv("MISTRAL_API_KEY")
         if not self.api_key:
             raise ValueError("MISTRAL_API_KEY not found in environment. Please set it in your .env file or Space secrets.")
 
-        self.model = "mistral-large-latest"
+        # Use mistral-medium for faster response (good balance of speed/accuracy)
+        self.model = "mistral-medium-latest"
         self.system_prompt = get_system_prompt()
 
-        # Initialize Mistral client
+        # Initialize Mistral client with timeout
         from mistralai import Mistral
-        self.client = Mistral(api_key=self.api_key)
+        self.client = Mistral(api_key=self.api_key, timeout=30)
         print(f"Mistral client initialized with model: {self.model}")
 
     def analyze(self, extracted_text: str) -> Dict[str, Any]:
@@ -127,14 +128,13 @@ class BiomarkerAnalyzer:
         Analyze extracted PDF text and return structured results.
         Optimized for speed.
         """
-        print(f"Analyzing text ({len(extracted_text)} chars)...")
-        print(f"Extracted text preview: {extracted_text[:300]}...")
-        
-        user_message = f"""Analyze this blood test report:
+        # Pre-process: truncate text to essential content (reduce tokens)
+        processed_text = self._preprocess_text(extracted_text)
+        print(f"Analyzing text ({len(processed_text)} chars)...")
 
-{extracted_text}
+        user_message = f"""{processed_text}
 
-Return valid JSON only."""
+Return JSON only."""
 
         try:
             response = self.client.chat.complete(
@@ -143,29 +143,28 @@ Return valid JSON only."""
                     {"role": "system", "content": self.system_prompt},
                     {"role": "user", "content": user_message}
                 ],
-                temperature=0.3,
-                max_tokens=4000,  # Increased from 2000 to handle full reports
-                response_format={"type": "json_object"},  # Force JSON mode
+                temperature=0.1,  # Lower temp for faster, more deterministic output
+                max_tokens=2500,  # Reduced from 4000 - blood tests don't need more
+                response_format={"type": "json_object"},
             )
 
             result_text = response.choices[0].message.content
             print(f"Raw API response length: {len(result_text)} chars")
-            
+
             # Check if response was truncated
             if not result_text or result_text.strip() == "":
                 print("ERROR: Empty response from API")
                 return self._get_fallback_response("Empty response from AI model")
-            
+
             # Check if JSON is complete (ends with })
             result_text = result_text.strip()
             if not result_text.endswith('}'):
                 print("WARNING: Response appears truncated, attempting to fix...")
-                # Try to find the last complete JSON object
                 last_brace = result_text.rfind('}')
                 if last_brace > 0:
                     result_text = result_text[:last_brace+1]
                     print(f"Truncated to last complete JSON object: {len(result_text)} chars")
-            
+
             result = extract_json_from_response(result_text)
 
             if result is None:
@@ -174,10 +173,36 @@ Return valid JSON only."""
 
             print(f"Successfully parsed result with {len(result.get('biomarkers', []))} biomarkers")
             return result
-            
+
         except Exception as e:
             print(f"API call failed: {str(e)}")
             return self._get_fallback_response(f"API error: {str(e)}")
+
+    def _preprocess_text(self, text: str) -> str:
+        """
+        Pre-process PDF text to reduce token count and remove noise.
+        """
+        # Remove excessive whitespace
+        lines = text.split('\n')
+        cleaned_lines = []
+        for line in lines:
+            line = line.strip()
+            if line and len(line) > 1:  # Skip empty or single-char lines
+                cleaned_lines.append(line)
+        
+        # Rejoin with single newlines
+        cleaned = '\n'.join(cleaned_lines)
+        
+        # Remove duplicate consecutive lines
+        lines = cleaned.split('\n')
+        unique_lines = []
+        prev = None
+        for line in lines:
+            if line != prev:
+                unique_lines.append(line)
+                prev = line
+        
+        return '\n'.join(unique_lines)
     
     def _get_fallback_response(self, error_msg: str) -> Dict[str, Any]:
         """Return a structured fallback response on error."""
