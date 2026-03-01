@@ -20,24 +20,40 @@ def extract_json_from_response(text: str) -> Optional[Dict[str, Any]]:
     Handles markdown code blocks and fixes common JSON issues.
     """
     if not text:
+        print("ERROR: Empty response from model")
         return None
+
+    # Clean up the text - remove markdown code blocks
+    text = text.strip()
     
+    # Remove markdown code block wrappers if present
+    if text.startswith('```json'):
+        text = text[7:]
+    elif text.startswith('```'):
+        text = text[3:]
+    if text.endswith('```'):
+        text = text[:-3]
+    
+    text = text.strip()
+
     # Try direct parse first
     try:
         return json.loads(text)
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as e:
+        print(f"Direct JSON parse failed: {e}")
         pass
-    
+
     # Try to extract JSON from markdown code block
     json_pattern = r'```(?:json)?\s*(\{.*?\})\s*```'
     match = re.search(json_pattern, text, re.DOTALL)
-    
+
     if match:
         try:
             return json.loads(match.group(1))
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as e:
+            print(f"Markdown block JSON parse failed: {e}")
             pass
-    
+
     # Look for any JSON object (first { to last })
     try:
         start = text.find('{')
@@ -47,9 +63,14 @@ def extract_json_from_response(text: str) -> Optional[Dict[str, Any]]:
             # Fix common issues
             json_str = fix_json_string(json_str)
             return json.loads(json_str)
-    except Exception:
+    except json.JSONDecodeError as e:
+        print(f"Extracted JSON parse failed: {e}")
+        print(f"JSON string was: {text[start:end][:200]}...")
         pass
-    
+    except Exception as e:
+        print(f"Unexpected error during JSON extraction: {e}")
+        pass
+
     return None
 
 
@@ -122,9 +143,11 @@ JSON format only, no markdown."""
         )
 
         result_text = response.choices[0].message.content
+        print(f"Raw API response: {result_text[:500]}...")
         result = extract_json_from_response(result_text)
-        
+
         if result is None:
+            print(f"Failed to parse JSON. Full response: {result_text}")
             return {
                 "overall_status": "UNKNOWN",
                 "summary": "Unable to parse results. Please try again.",
