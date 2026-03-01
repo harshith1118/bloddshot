@@ -118,9 +118,9 @@ class BiomarkerAnalyzer:
         self.model = "mistral-small-2506"
         self.system_prompt = get_system_prompt()
 
-        # Initialize Mistral client with timeout
+        # Initialize Mistral client
         from mistralai import Mistral
-        self.client = Mistral(api_key=self.api_key, timeout=20)
+        self.client = Mistral(api_key=self.api_key)
         print(f"Mistral client initialized with model: {self.model}")
 
     def analyze(self, extracted_text: str) -> Dict[str, Any]:
