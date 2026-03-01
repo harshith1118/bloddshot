@@ -144,7 +144,7 @@ JSON only:"""
                     {"role": "user", "content": user_message}
                 ],
                 temperature=0,  # Fastest, most deterministic
-                max_tokens=1500,  # Minimal for JSON output
+                max_tokens=3000,  # Increased to handle full biomarker analysis
                 response_format={"type": "json_object"},
             )
 
@@ -158,9 +158,13 @@ JSON only:"""
             result_text = result_text.strip()
             if not result_text.endswith('}'):
                 print("WARNING: Response appears truncated...")
-                last_brace = result_text.rfind('}')
-                if last_brace > 0:
-                    result_text = result_text[:last_brace+1]
+                # Try to find last complete biomarker entry and close JSON properly
+                last_complete = result_text.rfind(']')
+                if last_complete > 0:
+                    # Find where top_priorities should be and add closing
+                    result_text = result_text[:last_complete+1]
+                    result_text += '\n  ],\n  "top_priorities": ["Review results with doctor"],\n  "disclaimer": "Educational purposes only. Consult your doctor."\n}'
+                    print(f"Attempted to fix truncated JSON")
 
             result = extract_json_from_response(result_text)
 
