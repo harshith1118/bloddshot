@@ -52,7 +52,7 @@ Results in **15-30 seconds**.
 |-------|-----------|
 | **Frontend** | React 18 + Vite + Tailwind CSS + Framer Motion |
 | **Backend** | FastAPI (Python) |
-| **AI Model** | Mistral AI (`mistral-small-2506`) |
+| **AI Model** | Mistral AI (`Mistral-Large-3`) |
 | **PDF Parsing** | PyMuPDF + pdfplumber |
 | **Deployment** | Hugging Face Spaces (Docker) |
 
