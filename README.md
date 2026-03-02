@@ -12,20 +12,9 @@
 
 ## 🎯 The Problem
 
-Every year, **500+ million blood tests** are performed worldwide. Here's what happens next:
-
-| Problem | Impact |
-|---------|--------|
-| **80% of patients** can't understand their results | Confusion and unnecessary anxiety |
-| **Doctors have <10 minutes** per patient | No time to explain each number |
-| **Medical jargon** everywhere | Patients leave with more questions than answers |
-| **Reference ranges** are confusing | "Is 11.2 good or bad?" |
-
-**Real story:** I got my blood test back last year. My doctor had 4 minutes. I had 23 confusing numbers. I had no idea if I was dying or fine.
-
-**GutCheck fixes that.**
-
----
+- 80% of patients don't understand their results
+- Doctors have <10 minutes per patient
+- Medical jargon is confusing
 
 ## 💡 The Solution
 
