@@ -21,7 +21,6 @@ Built for **Mistral AI Worldwide Hackathon 2026**
 
 ## 🚀 The Problem
 
-- 500M+ blood tests performed yearly worldwide
 - 80% of patients don't understand their results
 - Doctors have <10 minutes per patient
 - Medical jargon is confusing
